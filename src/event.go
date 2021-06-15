@@ -41,9 +41,10 @@ type Mouse struct {
 }
 
 // Should probably be renamed
-func Partial(id int, event *Event, buffer []byte) error {
+func partial(id int, event *Event, buffer []byte) error {
 	var eq *EQueue
 	var nmore int // Probably isn't necessary
+	var err error
 
 	mutex.Lock()
 	for eq = equeue; eq != nil; eq = eq.Next {
@@ -60,14 +61,17 @@ func Partial(id int, event *Event, buffer []byte) error {
 	//* Partial message exists for this ID
 	// Message exists for this ID
 	eq.Buffer = append(eq.Buffer, buffer...)
-	event.message = PlumbUnpack(eq.Buffer, &nmore)
+	event.message, err = unpackMessage(eq.Buffer, &nmore)
+	if err != nil {
+		return err
+	}
 
 	equeue = eq.Next
 
 	return nil
 }
 
-func AddPartial(id int, buffer []byte) {
+func addPartial(id int, buffer []byte) {
 	eq := &EQueue{
 		ID:     id,
 		Buffer: buffer,
@@ -78,14 +82,17 @@ func AddPartial(id int, buffer []byte) {
 	mutex.Unlock()
 }
 
-func PlumbEvent(id int, event *Event, buffer []byte) (int, error) {
+func plumbEvent(id int, event *Event, buffer []byte) (int, error) {
 	var nmore int
 
-	if err := Partial(id, event, buffer); err != nil {
+	if err := partial(id, event, buffer); err != nil { //probably wrong
 		//* No partial message already waiting for this ID
-		event.message = PlumbUnpack(buffer, &nmore)
+		event.message, err = unpackMessage(buffer, &nmore)
+		if err != nil {
+			return -1, err //probably wrong
+		}
 		if nmore > 0 {
-			AddPartial(id, buffer)
+			addPartial(id, buffer)
 		}
 	}
 
@@ -97,10 +104,11 @@ func PlumbEvent(id int, event *Event, buffer []byte) (int, error) {
 	return 0, nil
 }
 
-func EPlumb(key int, port string) error {
-	var fd int
-
-	fd = PlumbOpen(port, go9p.OREAD|go9p.OCEXEC)
+func ePlumb(key int, port string) error {
+	fd, err := open(port, go9p.OREAD|go9p.OCEXEC)
+	if err != nil {
+		return err
+	}
 	if fd < 0 {
 		return errors.New("something")
 	}

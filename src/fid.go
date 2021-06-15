@@ -12,13 +12,13 @@ var (
 	pfid    *go9p.Fid
 )
 
-func plumbUnmount() {
+func unmount() {
 	if fsplumb != nil {
 		fsplumb.Unmount()
 	}
 }
 
-func plumbOpen(name string, omode int) (int, error) {
+func open(name string, omode int) (int, error) {
 	var err error
 
 	if fsplumb == nil {
@@ -59,7 +59,7 @@ func plumbOpen(name string, omode int) (int, error) {
 	return go9p.FSOpenFD(fsplumb, name, omode) //TODO: return fsopenfd(fsplumb, name, omode);
 }
 
-func plumbOpenFid(name string, mode int) (*go9p.Fid, error) {
+func openFid(name string, mode int) (*go9p.Fid, error) {
 	var err error
 
 	if fsplumb == nil {
@@ -72,34 +72,31 @@ func plumbOpenFid(name string, mode int) (*go9p.Fid, error) {
 	return go9p.FSOpen(fsplumb, name, mode) //TODO: pfid = fsopen(fsplumb, name, mode);
 }
 
-func plumbSendToFid(fid *go9p.Fid, msg *Message) (int, error) {
+func sendToFid(fid *go9p.Fid, msg Message) error {
 	if fid == nil {
-		return -1, errors.New("invalid fid")
+		return errors.New("invalid fid")
 	}
-	buffer, err := plumbPack(msg)
-	if err != nil {
-		return err
-	}
+	buffer := packMessage(msg)
 	return go9p.FSWrite(fid, buffer) //TODO: n = fswrite(fid, buf, n)
 }
 
-func plumbSend(fd int, msg *Message) (int, error) {
+func send(fd int, msg Message) error {
 	if fd == -1 {
-		return -1, errors.New("invalid fid")
+		return errors.New("invalid fid")
 	}
 	if fd != pfd {
-		return -1, errors.New("fd is not the plumber")
+		return errors.New("fd is not the plumber")
 	}
 
-	return plumbSendToFid(pfid, msg)
+	return sendToFid(pfid, msg)
 }
 
 //TODO
 
-func plumbReceive(fd int) (*Message, error) {
+func receive(fd int) (*Message, error) {
 	return nil, nil
 }
 
-func plumbReceiveFid(fid *go9p.Fid) (*Message, error) {
+func receiveFid(fid *go9p.Fid) (*Message, error) {
 	return nil, nil
 }
